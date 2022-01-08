@@ -13,6 +13,7 @@ library(stringr)
 library(lubridate)
 library(scales)
 library(igraph)
+library(rtweet)
 
 library(stringr)
 library(wordcloud)
@@ -54,6 +55,7 @@ pl_words_sentiment$word=paste(as.character(pl_words_sentiment$word))
 
 
 ```{r }
+load("farmers.Rdata")
 lista=rolnicy_czyste
 
 teksty=lista[,c(2,5,92)]
@@ -131,6 +133,23 @@ hist(as.Date(lista$account_created_at_d),  breaks="months")
 
 
 ```{r }
+lista %>%
+  ts_plot("1 hour") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Protests",
+    subtitle = "Twitter status (tweet) counts aggregated using hour inteval"
+  )
+lista$hour=hour(lista$created_at)
+by_hour= ddply(lista,.(hour), summarise,  counts =length(hour))
+
+ggplot() + geom_point(aes(x = hour, y = counts), by_hour) +
+ggtitle("By hours") +
+theme_minimal()
+p
+
 ```
 
 
