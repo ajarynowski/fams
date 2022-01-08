@@ -191,7 +191,7 @@ twi_maly=delete.vertices(twi_maly, which(V(twi_maly)$central_all<7))
 twi_rolnicy=twi_maly
 
 louvain_rol <- cluster_louvain(as.undirected(twi_rolnicy),weights = E(twi_rolnicy)$weight)
-mod_rol=modularity(as.undirected(twi_rolnicy), memb_rol)
+#mod_rol=modularity(as.undirected(twi_rolnicy), louvain_rol)
 gestosc_rol=edge_density(twi_rolnicy)
 
 lay <- layout_with_fr(twi_maly)
