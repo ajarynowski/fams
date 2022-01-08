@@ -1,0 +1,262 @@
+---
+title: "farmers"
+author: "AJ"
+date: "08/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(rvest)
+library(stringr)
+library(lubridate)
+library(scales)
+library(igraph)
+
+library(stringr)
+library(wordcloud)
+library(tidytext)
+library(tm)
+library(topicmodels)
+library(plyr)
+library(AMR)
+
+Sys.setlocale(category="LC_ALL", locale="Polish")
+#Sys.setlocale(category="LC_ALL", locale="German")
+
+#stemming and stop  owrds
+pl_stop_words <- read_lines("polish_stopwords.txt")
+stem_dictionary <- read_csv2("polimorfologik-2.2.txt",
+                             col_names = c("stem", "word"))
+
+# dictionary
+stem_dictionary <- stem_dictionary %>%
+  mutate(stem = str_to_lower(stem),
+         word = str_to_lower(word)) %>%
+  distinct()
+
+#
+stem_word <- function(word_to_stem) {
+  stem_dictionary %>% filter(word == word_to_stem) %>% .$stem %>% .[1]
+}
+
+pl_words_sentiment <- read.csv("nawl-analysis.csv", header=TRUE, fileEncoding = "UTF-8")
+pl_words_sentiment <- pl_words_sentiment[, 1:8]
+pl_words_sentiment$word=paste(as.character(pl_words_sentiment$word))
+
+
+
+
+
+```
+
+
+
+```{r }
+lista=rolnicy_czyste
+
+teksty=lista[,c(2,5,92)]
+
+# rozbijamy leady na pojedyncze s?owa
+lead_words <- teksty %>%
+  unnest_tokens(word, text, token = "words") %>%
+ filter(!word %in% pl_stop_words) %>% # usuwamy stop words
+  filter(nchar(word) >= 3) # zostawiamy tylko s?owa 3- i wi?cej literowe
+
+# stemming
+
+lead_words_stem <- lead_words %>%
+  left_join(stem_dictionary, by = c("word" = "word"))
+lead_words_stem$word_stem =  lead_words_stem$stem
+
+```
+
+Word cloud
+```{r  echo=FALSE}
+lead_words_stem$word_stem=as.character(lead_words_stem$word_stem)
+lead_word_cloud <- lead_words_stem %>%
+  dplyr::count(word_stem) %>%
+  ungroup()
+
+# lead_word_cloud=lead_word_cloud[-which(lead_word_cloud$word_stem=="https"),]
+# lead_word_cloud=lead_word_cloud[-which(lead_word_cloud$word_stem=="t.co"),]
+
+wordcloud(lead_word_cloud$word_stem, lead_word_cloud$n,
+          max.words = 100, scale = c(2.4, 0.6),
+         colors = RColorBrewer::brewer.pal(11, "Spectral")[1:11])
+
+wordcloud(lead_word_cloud$word_stem, lead_word_cloud$n,
+          max.words = 20, scale = c(2.4, 0.6),
+         colors = RColorBrewer::brewer.pal(11, "Spectral")[1:11])
+
+
+lead_words_stem %>%
+  dplyr::count(word_stem) %>%
+  ungroup() %>%
+  arrange(n) %>%
+  mutate(word = factor(word_stem, levels=word_stem)) %>%
+  filter(!is.na(word)) %>%
+  top_n(50, n) %>%
+  
+  ggplot() +
+  geom_bar(aes(word, n), stat = "identity", fill = "lightgreen", color = "gray50") +
+  ggtitle("Zliczanie najczetszych rdzeniow slow")+
+  coord_flip()
+
+```
+
+
+2-grams
+```{r }
+# biwords <- teksty %>%
+#  # mutate(tweetText = str_replace_all(tweetText, "@\\w +|http|https|t.co", " ")) %>%
+#   unnest_tokens("word", text, token = "ngrams", n = 2) %>%
+#   dplyr::count(word, sort = TRUE) %>%
+#   filter(!is.na(word)) %>%
+#   separate(word, into = c("word1", "word2")) %>%
+#   filter(!word1 %in% pl_stop_words, !word2 %in% pl_stop_words) %>%
+#   filter(str_length(word1) > 2 | str_length(word2) > 2) %>%
+#   unite("word", c("word1", "word2"), sep = " ")
+# 
+# 
+# biwords_f <- biwords %>% 
+#   filter(n > 1)%>%   filter
+
+hist(as.Date(lista$account_created_at_d),  breaks="months")
+
+
+```
+
+
+
+```{r }
+```
+
+
+```{r }
+```
+
+
+```{r }
+lista$day=as.Date(lista$created_at)
+lista$week=week(lista$day)
+do_sieci=lista[which(!is.na(lista$retweet_user_id)),c(1,4,54,55,2,3)]
+
+
+l <- matrix(0, nrow=dim(do_sieci)[1], ncol=2)
+
+
+l[, 1]=do_sieci$screen_name
+l[, 2]=do_sieci$retweet_screen_name  
+
+twi=graph_from_edgelist(l)
+
+
+
+E(twi)$weight=1
+twi=igraph::simplify(twi, edge.attr.comb=list(weight="sum"))
+V(twi)$central_all=strength(twi, mode="all", weights = E(twi)$weight)
+
+
+#usuwamy najmniej waznych
+twi_maly=delete.vertices(twi, which(V(twi)$central_all<2))
+
+#usuwamy wolne wierzcholki
+
+twi_maly=delete.vertices(twi_maly, which(degree(twi_maly)<1))
+
+twi_maly=delete.vertices(twi_maly, which(V(twi_maly)$central_all<7))
+
+
+twi_rolnicy=twi_maly
+
+louvain_rol <- cluster_louvain(as.undirected(twi_rolnicy),weights = E(twi_rolnicy)$weight)
+mod_rol=modularity(as.undirected(twi_rolnicy), memb_rol)
+gestosc_rol=edge_density(twi_rolnicy)
+
+lay <- layout_with_fr(twi_maly)
+louvain <- cluster_louvain(as.undirected(twi_maly),weights = E(twi_maly)$weight)
+memb <- membership(louvain)
+lay2=lay
+
+hist(log(V(twi_maly)$central_all))
+
+plot(twi_maly,vertex.label=V(twi_maly)$name, vertex.size=(50*log(V(twi_maly)$central_all)+V(twi_maly)$central_all/100)/20, vertex.label.cex=0.05,  edge.arrow.size=0, edge.width=log(E(twi_maly))/20, layout=lay, vertex.color=memb, vertex.frame.color=memb, rescale=TRUE)
+
+hs_user <- hub_score(twi, weights = E(twi)$weight)$vector
+as_user <- authority_score(twi, weights = E(twi)$weight)$vector
+
+# identifying the most influential users with hs and as; difference irrelevant in undirected usertagnetwork 
+V(twi)$hubscore <- hs_user
+V(twi)$authorityscore <- as_user
+
+iu_user = data.frame(ID = c(V(twi)$name), 
+                     Name = c(V(twi)$name),
+                     Hubscore = c(V(twi)$hubscore),
+                     Degree=c(V(twi)$central_all),
+                     Authorityscore = c(V(twi)$authorityscore))
+
+iu_user_hs = iu_user[order(iu_user$Hubscore, decreasing = T),]
+iu_user_as = iu_user[order(iu_user$Authorityscore, decreasing = T),]
+iu_user_wd = iu_user[order(iu_user$Degree, decreasing = T),]
+
+iu_user_hs[1:10,]
+iu_user_as[1:10,]
+iu_user_wd[1:20,]
+
+#ksztalty rolnicy
+V(twi_maly)$shape="circle"
+V(twi_maly)$shape[which(memb==5)]="triangle"
+V(twi_maly)$shape[which(memb==14)]="square"
+V(twi_maly)$shape[which(memb==2)]="rectangle"
+V(twi_maly)$shape[which(memb==13)]="star"
+#V(twi_maly)$shape[which(memb==15)]="vrectangle"
+V(twi_maly)$shape[which(memb==11)]="sphere"
+
+#plot(twi_maly,vertex.label=NA, vertex.shapes=V(twi_maly)$shape, vertex.size=(50*log(V(twi_maly)$central_all)+V(twi_maly)$central_all/20)/100, vertex.label.cex=0.05,  edge.arrow.size=0, edge.width=log(E(twi_maly))/50, layout=lay2, vertex.color=memb, vertex.frame.color=memb, rescale=TRUE)
+
+
+```
+
+
+
+```{r }
+body_words_sentiment <- inner_join(lead_words_stem %>%
+                                     select(day,word_stem),
+                                   pl_words_sentiment,
+                                   by = c("word_stem" = "word"))
+body_words_sentiment$day1=day(body_words_sentiment$day)
+
+
+se=body_words_sentiment %>%
+  dplyr::count( day1, category) %>%
+
+  ungroup() %>%
+  group_by( day1) %>%
+  mutate(p = n)%>%
+  #mutate(p = 100*n/numerki$n[month]) %>%
+  ungroup() %>%
+  filter(!category %in% c("N", "U")) %>%
+  mutate(category = case_when(.$category == "A" ~ "Anger",
+                              .$category == "H" ~ "Happy",
+                              .$category == "S" ~ "Sad",
+                              .$category == "D" ~ "Disgust",
+                              .$category == "F" ~ "Fear")) %>%
+  ggplot() +
+  geom_col(aes(day1, p, fill=category), show.legend = FALSE) +
+  ggtitle("Sentiment of farmers protests")+
+  theme_minimal()+
+  theme(axis.text.y = element_text(size = 4))+
+  theme(axis.text.x = element_text(size = 16))+
+  xlab("day of October")+
+  ylab("Counts")+
+  theme(text=element_text(size=11))+
+  #  facet_grid( category~., scales = "free")
+  facet_wrap(~category, ncol=1)
+
+se
+
+```
+
+
