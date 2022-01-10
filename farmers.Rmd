@@ -14,6 +14,11 @@ library(lubridate)
 library(scales)
 library(igraph)
 library(rtweet)
+library(igraph)
+
+library(plyr)
+
+library(data.table)
 
 library(stringr)
 library(wordcloud)
@@ -22,6 +27,11 @@ library(tm)
 library(topicmodels)
 library(plyr)
 library(AMR)
+library(tmaptools)
+library(ggmap)
+library(rworldmap)
+library(tmap)
+library(tmaptools)
 
 Sys.setlocale(category="LC_ALL", locale="Polish")
 #Sys.setlocale(category="LC_ALL", locale="German")
@@ -150,6 +160,58 @@ ggtitle("By hours") +
 theme_minimal()
 p
 
+```
+
+
+```{r }
+krzyzowy=lista %>%
+  dplyr::count(location, sort=TRUE)
+
+
+  
+ # krzyzowy<-dplyr::count(lista$location, sort=TRUE)
+
+krzyzowy=krzyzowy[c(1:50),]
+
+akt=data.frame(place=c(1:50))
+akt$lon=NA
+akt$lat=NA
+akt$place2=NA
+akt$place=krzyzowy$location[c(1:50)]
+akt$place2=krzyzowy$n[c(1:50)]
+akt=akt[-c(1:2,4:5),]
+
+akt$place[2]="Toruñ"
+akt$place[6]="Mława"
+akt$place[7]="Łódź"
+akt$place[9]="Radom"
+akt=akt[-c(11:50),]
+akt$place2[9]=akt$place2[9]+0.015
+
+
+i=0
+k=1
+# correcting notgeocoded values by hand
+for (k in 1:length(akt$place)) {
+  i=i+1
+  wspolrzedne <- geocode_OSM(akt$place[k])
+  cor=wspolrzedne$coords
+ 
+  akt$lon[k]=as.numeric(cor[1])
+  akt$lat[k]=as.numeric(cor[2])
+}
+
+newmap <- getMap(resolution = "low")
+plot(newmap, xlim = c(15, 25), ylim = c(45, 55), asp = 1)
+points(akt$lon, akt$lat, col = "red", pch=20, cex = akt$place2/100)
+
+
+
+
+```
+
+
+```{r }
 ```
 
 
